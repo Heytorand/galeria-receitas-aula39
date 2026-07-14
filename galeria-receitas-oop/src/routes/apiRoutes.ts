@@ -1,6 +1,9 @@
 import { Router, Request, Response } from "express";
 import { ReceitaRepository } from "../models/ReceitaRepository";
-// TODO 2: importar { upload } de "../middlewares/upload"
+// a) Importar upload
+import { upload } from "../middlewares/upload";
+import fs from "fs";
+import path from "path";
 
 export const apiRoutes = Router();
 const repo = new ReceitaRepository();
@@ -18,14 +21,13 @@ apiRoutes.get("/api/receitas", async (req: Request, res: Response) => {
 });
 
 // POST /api/receitas - criar nova [TEM TODOs DE UPLOAD]
-// TODO 3: adicionar upload.single("foto") como middleware
-apiRoutes.post("/api/receitas", /* TODO: upload.single("foto"), */ async (req: Request, res: Response) => {
+// b) Adicionar upload.single("foto") no POST como middleware
+apiRoutes.post("/api/receitas", upload.single("foto"), async (req: Request, res: Response) => {
   try {
     const { titulo, descricao, tempo } = req.body;
 
-    // TODO 4: pegar o caminho da foto do req.file
-    // const foto = req.file ? `/uploads/${req.file.filename}` : null;
-    const foto: string | null = null; // <- substituir pela linha acima
+    // c) Salvar foto: req.file ? /uploads/${req.file.filename} : null
+    const foto = req.file ? `/uploads/${req.file.filename}` : null;
 
     const nova = await repo.criar(titulo, descricao || "", tempo || "", foto);
     res.status(201).json({ sucesso: true, dados: nova.toJSON() });
@@ -46,10 +48,31 @@ apiRoutes.put("/api/receitas/:id", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/receitas/:id - remover [PRONTO]
+// DELETE /api/receitas/:id - remover [PRONTO + DESAFIO BONUS 22]
 apiRoutes.delete("/api/receitas/:id", async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  const removido = await repo.remover(id);
-  if (!removido) { res.status(404).json({ sucesso: false, erro: "Nao encontrada" }); return; }
-  res.json({ sucesso: true });
+  try {
+    const id = Number(req.params.id);
+    
+    // Buscar a receita para verificar se ela possui uma foto cadastrada antes de remover
+    const receita = await repo.buscarPorId(id);
+    if (!receita) { 
+      res.status(404).json({ sucesso: false, erro: "Nao encontrada" }); 
+      return; 
+    }
+
+    // Se a receita tiver uma foto, apaga o arquivo físico do disco
+    if (receita.foto) {
+      const nomeArquivo = receita.foto.replace("/uploads/", "");
+      const caminhoArquivo = path.join(process.cwd(), "uploads", nomeArquivo);
+      
+      if (fs.existsSync(caminhoArquivo)) {
+        fs.unlinkSync(caminhoArquivo);
+      }
+    }
+
+    const removido = await repo.remover(id);
+    res.json({ sucesso: true });
+  } catch (e: any) {
+    res.status(500).json({ sucesso: false, erro: e.message });
+  }
 });
