@@ -7,8 +7,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-// TODO 5: Servir a pasta uploads/ para o navegador acessar as fotos
-// app.use("/uploads", express.static("uploads"));
+// TODO 1: Servir a pasta uploads/ para o navegador acessar as fotos
+app.use("/uploads", express.static("uploads"));
 
 app.set("view engine", "ejs");
 app.set("views", "./src/views");
